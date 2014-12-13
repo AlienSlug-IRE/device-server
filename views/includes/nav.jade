@@ -1,0 +1,10 @@
+nav.well
+	ul.nav.nav-pills
+		- var menuArr = { home : 'Home', devices: 'Devices' }
+		- var current = title.toLowerCase()
+		- for menu, path in menuArr
+			li(class=(path == current) && 'active')
+				a(href='/' + path) #{menu}
+	
+		
+	

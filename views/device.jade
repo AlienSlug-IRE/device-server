@@ -1,0 +1,213 @@
+doctype
+html
+	include includes/head
+	body
+		include includes/nav
+		h1(data-bind="text: device.name")
+		table.table
+			thead
+				tr
+					th ID
+					th Name
+					th Status
+					th Created
+			tbody
+				tr
+					td(data-bind="text: device._id")
+					td 
+						input.form-control(type='text' data-bind="textInput: device.name, onkeyup: updateDevice")
+					td
+						- var options = [ { name: 'Active', value: true }, { name: 'Not Active', value: false }  ];
+						select
+							each option, i in options
+								option(data-bind="onclick:boom", value='#{option.value}', selected=(option.value == device.active) && 'selected') #{option.name}
+					td(data-bind="text: device.modified")
+
+		h2 Recipes
+		table.table
+			thead
+				tr
+					th
+					th Name
+					th React On
+					th Result In
+			tbody(data-bind='foreach: device.recipes_detailed')
+				tr
+					td
+						button.btn.btn-danger(data-bind="click: $parent.removeRecipe")  
+							span.fa.fa-trash
+					td
+						input.form-control(type='text' data-bind="textInput: name")
+					td
+						select(data-bind='options:$parent.onActions, optionsText: "name", optionsCaption: "Choose Trigger Action"')
+					td
+						select(data-bind='options:doActions, value: selectedDoAction, optionsText: "name", optionsCaption: "Choose Reaction"')
+						span(data-bind='foreach: ingredients.do')
+							.label.label-primary(data-bind='click: $parent.removeIngredient')
+								span(data-bind='text: name')
+								span &nbsp; 
+								span.fa.fa-remove
+
+
+		h2 All Available Recipes
+			.well(data-bind="foreach: recipes")
+				.media
+					.media-left
+						button.btn.btn-default(data-bind="click: $parent.addRecipe") Add
+					.media-body
+						h4.media-heading(data-bind='text:name')
+
+		script.
+			var device = !{JSON.stringify(device).replace(/<\//g, "<\\/")},
+				recipes = !{JSON.stringify(recipes).replace(/<\//g, "<\\/")},
+				ingredients = !{JSON.stringify(ingredients).replace(/<\//g, "<\\/")},
+				myModel = {
+					device: {
+						name: ko.observable(),
+						old_name: ko.observable(),
+						recipes: ko.observableArray(),
+						recipes_detailed: ko.observableArray(),
+						_id: ko.observable(),
+						modified: ko.observable(),
+						active: ko.observable()
+					},
+					onActions: ko.observableArray(),
+					doActions: ko.observableArray(),
+					addDoAction: function(evt){
+						console.log(evt);
+					},
+					onActionSelected: function(evt){
+						console.log('onActionSelected', evt);
+					},
+					recipes: ko.observable(),
+					ingredients: ko.observable(),
+					setupDevice: function(){
+						myModel.device.name(device.name);
+						if(!_.isUndefined(device.recipes)) myModel.device.recipes(device.recipes);
+						myModel.device._id(device._id);
+						myModel.device.modified(device.modified);
+						myModel.device.active(device.active);
+						myModel.recipes(recipes);
+						myModel.ingredients(ingredients);
+						myModel.device.recipes_detailed([]);
+						_.each(myModel.ingredients(), function(ingredient){
+							if(ingredient.config[0].mode === 'input'){
+								myModel.onActions.push(ingredient);
+							} else {
+								myModel.doActions.push(ingredient);
+							}
+						});
+						_.each(myModel.device.recipes(), function(recipe) {
+							var ref = _.findWhere(myModel.recipes(), { _id: recipe } );
+							var onRef = _.findWhere(myModel.ingredients(), { _id: ref.ingredients.on } );
+							var doRefs = [];
+							var populateDoes = function(){
+								_.each(ref.ingredients.do, function(does){
+									var doRef = _.findWhere(myModel.ingredients(), { _id: does } );
+									doRefs.push({
+										name: doRef.name,
+										_id: doRef._id
+									});
+								});
+							}
+							ref.ingredients.on = {
+								name: onRef.name,
+								_id: onRef._id
+							}
+							ref.ingredients.do = ko.observableArray(doRefs);
+							ref.doActions = ko.observableArray(myModel.doActions());
+							ref.removeIngredient = function(evt){
+								var refRecipe = _.findWhere(myModel.recipes(), { _id: ref._id})
+								var arr = refRecipe.ingredients.do();
+								arr = _.without(arr, _.findWhere(arr, { _id : evt._id } ) );
+								refRecipe.ingredients.do(arr);
+								myModel.updateRecipe(refRecipe);
+							}
+							ref.selectedDoAction = ko.observable();
+							ref.selectedDoAction.subscribe(function(value) {
+								var refRecipe = _.findWhere(myModel.recipes(), { _id: ref._id})
+								ref.ingredients.do.push(value);
+								populateDoes();
+								myModel.updateRecipe(refRecipe);
+							}, this);
+							ref.name = ko.observable(ref.name);
+							ref.name.subscribe(function(value) {
+								var refRecipe = _.findWhere(myModel.recipes(), { _id: ref._id})
+								ref.name(value);
+								myModel.updateRecipe(refRecipe);
+							}, this);
+							console.log(ref);
+							myModel.device.recipes_detailed.push(ref);
+						});
+						console.log(myModel.recipes());
+					},
+					addRecipe: function(evt){
+						var arr = myModel.device.recipes();
+						arr.push(evt._id);
+						myModel.updateDevice();
+					},
+					removeRecipe: function(evt){
+						var arr = myModel.device.recipes();
+						myModel.device.recipes(_.without(arr, evt._id));
+						myModel.updateDevice();
+					},
+					boom: function(){
+						console.log('boom');
+					},
+					removeDoAction: function(evt){
+						console.log('removeDoAction', evt);
+					},
+					updateDevice: function(){
+						$.ajax({
+							type: 'put',
+							url: '/api/device/' + device._id,
+							dataType: 'json',
+							contentType: "application/json; charset=utf-8",
+							data: JSON.stringify({
+								active: myModel.device.active(),
+								name: myModel.device.name(),
+								recipes: myModel.device.recipes()
+							}),
+							success: function(res){
+								ingredients = res.data.ingredients;
+								device = res.data.device;
+								recipes = res.data.recipes;
+								myModel.setupDevice();
+							}
+						});
+					},
+					updateRecipe: function(evt){
+						var arr = [];
+						_.each(evt.ingredients.do(), function(does){
+							arr.push(does._id);
+						});
+						$.ajax({
+							type: 'put',
+							url: '/api/recipe/' + evt._id,
+							dataType: 'json',
+							contentType: "application/json; charset=utf-8",
+							data: JSON.stringify({
+								active: evt.active,
+								name: evt.name(),
+								ingredients: {
+									on: evt.ingredients.on._id,
+									do: arr
+								}
+							}),
+							success: function(res){}
+						});
+					}
+				};
+			myModel.device.name.subscribe(function(value) {
+				myModel.device.old_name(value);
+			}, this, 'beforeChange');
+			myModel.device.name.subscribe(function(value) {
+				if(_.isUndefined(myModel.device.old_name())) return;
+				myModel.device.name(value);
+				myModel.updateDevice();
+			}, this);
+			ko.applyBindings(myModel);
+			myModel.setupDevice();
+
+		include includes/foot
+		
