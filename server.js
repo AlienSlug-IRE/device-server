@@ -17,11 +17,14 @@ app.use(bodyParser.json({
 app.set('views', __dirname + '/views');
 app.set('css', __dirname + '/public/css');
 app.set('fonts', __dirname + '/public/fonts');
+app.set('imgs', __dirname + '/public/img');
 app.set('js', __dirname + '/public/js');
 app.set('view engine', 'jade');
 app.use(express.static(__dirname + '/public'));
 app.all("*", function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "http://192.168.1.9:9000");
     res.header("Access-Control-Allow-Origin", "http://localhost:9000");
+    
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "PUT, GET, POST, DELETE, PATCH, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
@@ -35,6 +38,7 @@ app.all("*", function(req, res, next) {
 io.on('connection', function(socket) {
     socket.on('subscribe', function(data) { 
         console.log('Device', data.channel, 'connected');
+        io.emit('subscribe', { device: data.channel });
         socket.channel = data.channel;
         socket.join(data.channel); 
         request({
@@ -47,15 +51,21 @@ io.on('connection', function(socket) {
             }
         }, function(err, res, body) {});
     })
-    socket.on('unsubscribe', function(data) { socket.join(data.channel); })
+    socket.on('unsubscribe', function(data) { 
+        io.emit('unsubscribe', { device: data.channel });
+        socket.join(data.channel); 
+    })
     socket.on('trigger', function(data) { 
+        io.emit('trigger', { device: data });
         console.log('Device Trigger', data);
     });
     socket.on('report', function(data) { 
+        io.emit('report', { device: data });
         console.log('Device Report', data);
     });
     socket.on('disconnect', function(){
         console.log('Device',  socket.channel ,'lost');
+        io.emit('disconnect', { device: socket.channel });
         request({
             uri: 'http://localhost:3000/api/device/' + socket.channel,
             method: 'put',
@@ -68,5 +78,5 @@ io.on('connection', function(socket) {
     });
 });
 
-var routes = require('./routes')(app, mongoose);
+var routes = require('./routes')(app, mongoose, io);
 console.log("API Server " + port);

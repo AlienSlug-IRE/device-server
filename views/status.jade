@@ -1,0 +1,35 @@
+doctype
+html
+	include includes/head
+	body.container
+		h1.page-header UBD Status Screen
+		.well
+			#info
+
+	script.
+		var socket = io();
+		socket.on('unsubscribe', function(msg){
+		  console.log('unsubscribe', msg);
+		  $('#info').prepend('<strong>Unsubscribe</strong> ' + JSON.stringify(msg) + ' ' + new Date() +  '<br>');
+		});
+		socket.on('subscribe', function(msg){
+		  console.log('subscribe', msg);
+		  $('#info').prepend('<strong>Subscribe</strong> ' + JSON.stringify(msg) + ' ' + new Date() +  '<br>');
+		});
+		socket.on('trigger', function(msg){
+		  console.log('trigger', msg);
+		  $('#info').prepend('<strong>Trigger</strong> ' + JSON.stringify(msg) + ' ' + new Date() +  '<br>');
+		});
+		socket.on('disconnect', function(msg){
+		  console.log('disconnect', msg);
+		  $('#info').prepend('<strong>Disconnect</strong> ' + JSON.stringify(msg) + ' ' + new Date() +  '<br>');
+		});
+		socket.on('report', function(msg){
+		  console.log('report', msg);
+		  $('#info').prepend('<strong>Report</strong> ' + JSON.stringify(msg) + ' ' + new Date() +  '<br>');
+		});
+		socket.on('do', function(msg){
+		  console.log('do', msg);
+		  $('#info').prepend('<strong>Do</strong> ' + JSON.stringify(msg) + ' ' + new Date() +  '<br>');
+		});
+		

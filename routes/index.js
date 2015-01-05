@@ -1,4 +1,6 @@
-module.exports = function(app, mongoose) {        /*
+module.exports = function(app, mongoose, io) {        
+    var async = require('async');
+    /*
 		******************************************************************************
 		Device CRUD
 		******************************************************************************
@@ -14,7 +16,20 @@ module.exports = function(app, mongoose) {        /*
         });
     };
 
-    var async = require('async');
+    var emitCommand = function(obj){
+        console.log('emitCommand', obj);
+        io.emit('do', obj);
+    };
+
+    app.post('/api/command', function(req, res, next) {
+        emitCommand(req.body);
+        return res.send({
+            success: true,
+            command: req.body
+        });
+    });
+
+    
     var DeviceModel = mongoose.model('Device', require('../models/device')(mongoose));
     app.post('/api/device', function(req, res, next) {
         var device = new DeviceModel({
@@ -194,6 +209,54 @@ module.exports = function(app, mongoose) {        /*
             });
         });
     });
+
+    var ProjectModel = mongoose.model('Project', require('../models/project')(mongoose));
+    app.post('/api/project', function(req, res, next) {
+        var project = new ProjectModel({
+            name: req.body.name
+        });
+        project.save(function(err) {
+            if (!err) {
+                return res.send({
+                    success: true,
+                    project: project
+                });
+            } else {
+                return res.send({
+                    success: false
+                });
+            }
+        });
+    });
+    app.get('/api/project', function(req, res, next) {
+        ProjectModel.find({}, function(err, results) {
+            if (!err) {
+                return res.send({
+                    success: true,
+                    projects: results
+                });
+            } else {
+                return res.send({
+                    success: false
+                });
+            }
+        });
+    });
+    app.delete('/api/project/:id', function(req, res, next) {
+        return ProjectModel.findById(req.params.id, function(err, project) {
+            return project.remove(function(err) {
+                if (!err) {
+                    return res.send({
+                        success: true
+                    });
+                } else {
+                    return res.send({
+                        success: false
+                    });
+                }
+            });
+        });
+    });
     /*
 		******************************************************************************
 		Watchers
@@ -204,22 +267,24 @@ module.exports = function(app, mongoose) {        /*
 		Home
 		******************************************************************************
 	*/
-    app.get('/home', function(req, res) {
-        res.render('index', {
-            title: 'Home'
+    app.get('/hotel', function(req, res) {
+        res.render('hotel', {
+            title: 'Hotel'
         });
     });
-    app.get('/devices', function(req, res) {
-        getAllDevices(function(err, devices) {
-            res.render('devices', {
-                title: 'Devices',
-                devices: devices
-            });
+    app.get('/tea', function(req, res) {
+        res.render('tea', {
+            title: 'Tea'
         });
     });
-    app.get('/device/:id', function(req, res) {
-        getDevice(function(err, results) {
-            return res.render('device', results);
-        }, req.params.id);
+    app.get('/app', function(req, res) {
+        res.render('user', {
+            title: 'Admin App'
+        });
+    });
+    app.get('/status', function(req, res) {
+        res.render('status', {
+            title: 'Status'
+        });
     });
 };
