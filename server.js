@@ -1,3 +1,8 @@
+var options = {
+    user: 'admin',
+    pass: 'vIxqCgBAVsiI'
+};
+
 var express = require('express'),
     app = express(),
     mongoose = require('mongoose'),
@@ -6,7 +11,8 @@ var express = require('express'),
     server = app.listen(port),
     request = require('request'),
     io = require('socket.io').listen(server);
-mongoose.connect('mongodb://localhost/ecomm_database');
+// mongoose.connect('mongodb://localhost/ecomm_database');
+mongoose.connect('mongodb://localhost/ubd', options);
 app.use(bodyParser.urlencoded({
     extended: false
 }));
@@ -80,3 +86,5 @@ io.on('connection', function(socket) {
 
 var routes = require('./routes')(app, mongoose, io);
 console.log("API Server " + port);
+
+
